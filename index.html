@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Group Selfie Camera</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #FFD700;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal h2 {
+            color: #4169E1;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 28px;
+            font-weight: bold;
+            line-height: 1.4;
+        }
+
+        .modal p {
+            display: none;
+        }
+
+        .name-input-group {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .name-input-group input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+
+        .name-input-group input:focus {
+            outline: none;
+            border-color: #FF1493;
+        }
+
+        .remove-btn {
+            background: #ff4757;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            cursor: pointer;
+            font-size: 18px;
+            display: block;
+        }
+
+        .add-btn {
+            width: 100%;
+            padding: 12px;
+            background: #FF1493;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: background 0.3s;
+        }
+
+        .add-btn:hover {
+            background: #E6127A;
+        }
+
+        .add-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .start-btn {
+            width: 100%;
+            padding: 15px;
+            background: #4169E1;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .start-btn:hover {
+            background: #3557C1;
+        }
+
+        .camera-container {
+            display: none;
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+        }
+
+        .camera-container.active {
+            display: block;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .overlay-canvas {
+            pointer-events: none;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        .capture-btn, .download-btn, .retake-btn, .shuffle-btn {
+            padding: 15px 30px;
+            border-radius: 50px;
+            border: 3px solid white;
+            background: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            min-width: 100px;
+        }
+
+        .capture-btn:hover, .download-btn:hover, .retake-btn:hover, .shuffle-btn:hover {
+            background: rgba(255, 255, 255, 0.5);
+            transform: scale(1.05);
+        }
+
+        .download-btn, .retake-btn {
+            display: none;
+        }
+
+        .shuffle-btn {
+            background: rgba(255, 215, 0, 0.5);
+        }
+
+        .shuffle-btn:hover {
+            background: rgba(255, 215, 0, 0.7);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (orientation: landscape) and (max-width: 900px) {
+            .controls {
+                right: 30px;
+                left: auto;
+                transform: none;
+                flex-direction: column;
+            }
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="modal" id="nameModal">
+        <h2>Praveen, who are you clicking a selfie with?</h2>
+        <div id="nameInputs"></div>
+        <button class="add-btn" id="addNameBtn">+ Add Person</button>
+        <button class="start-btn" id="startBtn">Start Camera</button>
+    </div>
+
+    <div class="camera-container" id="cameraContainer">
+        <div class="loading" id="loading">Loading camera...</div>
+        <video id="video" autoplay playsinline></video>
+        <canvas id="overlayCanvas" class="overlay-canvas"></canvas>
+        <canvas id="captureCanvas" class="hidden"></canvas>
+        <div class="controls">
+            <button class="shuffle-btn" id="shuffleBtn">Shuffle</button>
+            <button class="capture-btn" id="captureBtn">Click</button>
+            <button class="retake-btn" id="retakeBtn">Retake</button>
+            <button class="download-btn" id="downloadBtn">Download</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js"></script>
+
+    <script>
+        let names = [];
+        let faceCaptured = false;
+        let randomOrder = [];
+        let circlePositions = []; // Store positions to prevent recalculation
+
+        // Name modal functionality
+        document.getElementById('addNameBtn').addEventListener('click', () => {
+            if (names.length < 10) {
+                names.push('');
+                updateNameInputs();
+            }
+        });
+
+        function updateNameInputs() {
+            const container = document.getElementById('nameInputs');
+            container.innerHTML = names.map((name, index) => `
+                <div class="name-input-group">
+                    <input type="text" value="${name}" data-index="${index}" placeholder="Enter name">
+                    <button class="remove-btn" data-index="${index}">×</button>
+                </div>
+            `).join('');
+
+            // Add event listeners
+            container.querySelectorAll('input').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    names[e.target.dataset.index] = e.target.value;
+                });
+            });
+
+            container.querySelectorAll('.remove-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = parseInt(e.target.dataset.index);
+                    names.splice(index, 1);
+                    updateNameInputs();
+                });
+            });
+
+            document.getElementById('addNameBtn').disabled = names.length >= 10;
+        }
+
+        // Start camera
+        document.getElementById('startBtn').addEventListener('click', async () => {
+            // Generate random order for display
+            const allNames = ['Praveen', ...names.filter(n => n.trim())];
+            randomOrder = [...allNames].sort(() => Math.random() - 0.5);
+            
+            document.getElementById('nameModal').style.display = 'none';
+            document.getElementById('cameraContainer').classList.add('active');
+            await initCamera();
+        });
+
+        let faceDetection;
+        let camera;
+
+        async function initCamera() {
+            const video = document.getElementById('video');
+            const overlayCanvas = document.getElementById('overlayCanvas');
+            const ctx = overlayCanvas.getContext('2d');
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: 1280, height: 720 }
+                });
+                video.srcObject = stream;
+
+                video.addEventListener('loadedmetadata', () => {
+                    overlayCanvas.width = video.videoWidth;
+                    overlayCanvas.height = video.videoHeight;
+                    document.getElementById('loading').style.display = 'none';
+                    
+                    // Calculate positions once on load
+                    const centerX = overlayCanvas.width / 2;
+                    const centerY = overlayCanvas.height / 2;
+                    const totalPeople = randomOrder.length;
+                    const baseRadius = Math.min(overlayCanvas.width, overlayCanvas.height) * 0.12;
+                    circlePositions = calculateOptimalPositions(centerX, centerY, baseRadius, totalPeople);
+                    
+                    drawGuides();
+                });
+
+                // Initialize MediaPipe Face Detection
+                faceDetection = new FaceDetection({
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`
+                });
+
+                faceDetection.setOptions({
+                    model: 'short',
+                    minDetectionConfidence: 0.5
+                });
+
+                faceDetection.onResults(onResults);
+
+                // Don't use camera helper - it calls onResults too frequently
+                // Just display the video without continuous processing
+                video.play();
+            } catch (error) {
+                alert('Camera access denied or not available');
+                console.error(error);
+            }
+        }
+
+        function drawGuides() {
+            const canvas = document.getElementById('overlayCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (faceCaptured) return;
+
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const totalPeople = randomOrder.length;
+            
+            if (totalPeople === 1) {
+                // Only Praveen
+                const radius = Math.min(canvas.width, canvas.height) * 0.2;
+                drawPersonCircle(ctx, centerX, centerY, radius, 'Praveen', true);
+            } else {
+                // Calculate sizes based on number of people
+                const baseRadius = Math.min(canvas.width, canvas.height) * 0.12;
+                const positions = calculateOptimalPositions(centerX, centerY, baseRadius, totalPeople);
+                
+                randomOrder.forEach((name, index) => {
+                    const pos = positions[index];
+                    const isPraveen = name === 'Praveen';
+                    drawPersonCircle(ctx, pos.x, pos.y, baseRadius, name, isPraveen);
+                });
+            }
+        }
+
+        function drawPersonCircle(ctx, x, y, radius, name, isPraveen) {
+            // Fill circle with color and opacity
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, 2 * Math.PI);
+            
+            if (isPraveen) {
+                ctx.fillStyle = 'rgba(65, 105, 225, 0.5)'; // RISD Blue
+                ctx.strokeStyle = 'rgba(65, 105, 225, 0.8)';
+            } else {
+                ctx.fillStyle = 'rgba(255, 20, 147, 0.5)'; // Hot pink
+                ctx.strokeStyle = 'rgba(255, 20, 147, 0.8)';
+            }
+            
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.setLineDash([10, 5]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw name inside circle
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 18px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Wrap text if too long
+            const maxWidth = radius * 1.6;
+            const words = name.split(' ');
+            let line = '';
+            let y_offset = 0;
+            
+            if (words.length > 1 && ctx.measureText(name).width > maxWidth) {
+                words.forEach((word, idx) => {
+                    const testLine = line + word + ' ';
+                    if (ctx.measureText(testLine).width > maxWidth && line !== '') {
+                        ctx.fillText(line.trim(), x, y + y_offset - 10);
+                        line = word + ' ';
+                        y_offset += 20;
+                    } else {
+                        line = testLine;
+                    }
+                });
+                ctx.fillText(line.trim(), x, y + y_offset - 10);
+            } else {
+                ctx.fillText(name, x, y);
+            }
+        }
+
+        function calculateOptimalPositions(centerX, centerY, radius, count) {
+            const positions = [];
+            const canvasWidth = document.getElementById('overlayCanvas').width;
+            const canvasHeight = document.getElementById('overlayCanvas').height;
+            const padding = radius * 1.5;
+            
+            // Generate random positions ensuring no overlap
+            const maxAttempts = 1000;
+            
+            for (let i = 0; i < count; i++) {
+                let attempts = 0;
+                let validPosition = false;
+                let newPos;
+                
+                while (!validPosition && attempts < maxAttempts) {
+                    // Random position within bounds
+                    newPos = {
+                        x: padding + Math.random() * (canvasWidth - 2 * padding),
+                        y: padding + Math.random() * (canvasHeight - 2 * padding)
+                    };
+                    
+                    // Check if position overlaps with existing circles
+                    validPosition = true;
+                    for (let j = 0; j < positions.length; j++) {
+                        const dist = Math.sqrt(
+                            Math.pow(newPos.x - positions[j].x, 2) + 
+                            Math.pow(newPos.y - positions[j].y, 2)
+                        );
+                        
+                        if (dist < radius * 2.5) {
+                            validPosition = false;
+                            break;
+                        }
+                    }
+                    
+                    attempts++;
+                }
+                
+                if (validPosition) {
+                    positions.push(newPos);
+                } else {
+                    // Fallback to grid if random fails
+                    const cols = Math.ceil(Math.sqrt(count));
+                    const row = Math.floor(i / cols);
+                    const col = i % cols;
+                    const spacingX = (canvasWidth - 2 * padding) / (cols + 1);
+                    const spacingY = (canvasHeight - 2 * padding) / (Math.ceil(count / cols) + 1);
+                    
+                    positions.push({
+                        x: padding + spacingX * (col + 1),
+                        y: padding + spacingY * (row + 1)
+                    });
+                }
+            }
+            
+            return positions;
+        }
+
+        function onResults(results) {
+            drawGuides();
+        }
+
+        // Shuffle button
+        document.getElementById('shuffleBtn').addEventListener('click', () => {
+            const allNames = ['Praveen', ...names.filter(n => n.trim())];
+            randomOrder = [...allNames].sort(() => Math.random() - 0.5);
+            
+            // Recalculate positions for new random order
+            const canvas = document.getElementById('overlayCanvas');
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const baseRadius = Math.min(canvas.width, canvas.height) * 0.12;
+            circlePositions = calculateOptimalPositions(centerX, centerY, baseRadius, randomOrder.length);
+            
+            drawGuides();
+        });
+
+        // Capture photo
+        document.getElementById('captureBtn').addEventListener('click', () => {
+            const video = document.getElementById('video');
+            const captureCanvas = document.getElementById('captureCanvas');
+            const ctx = captureCanvas.getContext('2d');
+
+            captureCanvas.width = video.videoWidth;
+            captureCanvas.height = video.videoHeight;
+
+            ctx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+
+            faceCaptured = true;
+            document.getElementById('overlayCanvas').style.display = 'none';
+            document.getElementById('captureBtn').style.display = 'none';
+            document.getElementById('shuffleBtn').style.display = 'none';
+            document.getElementById('retakeBtn').style.display = 'block';
+            document.getElementById('downloadBtn').style.display = 'block';
+
+            video.style.display = 'none';
+            captureCanvas.classList.remove('hidden');
+            captureCanvas.style.position = 'absolute';
+            captureCanvas.style.top = '0';
+            captureCanvas.style.left = '0';
+            captureCanvas.style.width = '100%';
+            captureCanvas.style.height = '100%';
+            captureCanvas.style.objectFit = 'cover';
+        });
+
+        // Retake photo
+        document.getElementById('retakeBtn').addEventListener('click', () => {
+            faceCaptured = false;
+            document.getElementById('video').style.display = 'block';
+            document.getElementById('overlayCanvas').style.display = 'block';
+            document.getElementById('captureCanvas').classList.add('hidden');
+            document.getElementById('captureBtn').style.display = 'block';
+            document.getElementById('shuffleBtn').style.display = 'block';
+            document.getElementById('retakeBtn').style.display = 'none';
+            document.getElementById('downloadBtn').style.display = 'none';
+            drawGuides();
+        });
+
+        // Download photo
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            const captureCanvas = document.getElementById('captureCanvas');
+            const link = document.createElement('a');
+            link.download = `group-selfie-${Date.now()}.png`;
+            link.href = captureCanvas.toDataURL('image/png');
+            link.click();
+        });
+
+        // Handle orientation changes
+        window.addEventListener('resize', () => {
+            if (!faceCaptured && circlePositions.length > 0) {
+                const video = document.getElementById('video');
+                const overlayCanvas = document.getElementById('overlayCanvas');
+                if (video.videoWidth && video.videoHeight) {
+                    overlayCanvas.width = video.videoWidth;
+                    overlayCanvas.height = video.videoHeight;
+                    
+                    // Recalculate positions for new canvas size
+                    const centerX = overlayCanvas.width / 2;
+                    const centerY = overlayCanvas.height / 2;
+                    const baseRadius = Math.min(overlayCanvas.width, overlayCanvas.height) * 0.12;
+                    circlePositions = calculateOptimalPositions(centerX, centerY, baseRadius, randomOrder.length);
+                    
+                    drawGuides();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
