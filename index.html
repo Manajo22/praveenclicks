@@ -431,8 +431,8 @@
             const positions = [];
             const canvasWidth = document.getElementById('overlayCanvas').width;
             const canvasHeight = document.getElementById('overlayCanvas').height;
-            const padding = radius * 1.5;
-            const maxAttempts = 1000;
+            const padding = radius * 1.8;
+            const maxAttempts = 1500;
             
             for (let i = 0; i < count; i++) {
                 let attempts = 0;
@@ -452,7 +452,7 @@
                             Math.pow(newPos.y - positions[j].y, 2)
                         );
                         
-                        if (dist < radius * 2.5) {
+                        if (dist < radius * 2.8) {
                             validPosition = false;
                             break;
                         }
@@ -536,16 +536,41 @@
             link.click();
         });
 
+        let resizeTimeout;
         window.addEventListener('resize', () => {
-            if (!faceCaptured && circlePositions.length > 0) {
-                const video = document.getElementById('video');
-                const overlayCanvas = document.getElementById('overlayCanvas');
-                if (video.videoWidth && video.videoHeight) {
-                    overlayCanvas.width = video.videoWidth;
-                    overlayCanvas.height = video.videoHeight;
-                    calculateAndDrawPositions();
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (!faceCaptured) {
+                    const video = document.getElementById('video');
+                    const overlayCanvas = document.getElementById('overlayCanvas');
+                    if (video.videoWidth && video.videoHeight) {
+                        overlayCanvas.width = video.videoWidth;
+                        overlayCanvas.height = video.videoHeight;
+                        overlayCanvas.style.width = '100%';
+                        overlayCanvas.style.height = '100%';
+                        overlayCanvas.style.objectFit = 'cover';
+                        calculateAndDrawPositions();
+                    }
                 }
-            }
+            }, 100);
+        });
+
+        // Handle orientation changes specifically
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                if (!faceCaptured) {
+                    const video = document.getElementById('video');
+                    const overlayCanvas = document.getElementById('overlayCanvas');
+                    if (video.videoWidth && video.videoHeight) {
+                        overlayCanvas.width = video.videoWidth;
+                        overlayCanvas.height = video.videoHeight;
+                        overlayCanvas.style.width = '100%';
+                        overlayCanvas.style.height = '100%';
+                        overlayCanvas.style.objectFit = 'cover';
+                        calculateAndDrawPositions();
+                    }
+                }
+            }, 300);
         });
     </script>
 </body>
