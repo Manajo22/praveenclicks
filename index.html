@@ -130,11 +130,14 @@
 
         .camera-container {
             display: none;
-            position: relative;
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100vw;
             height: 100vh;
             height: 100dvh;
             background: #000;
+            overflow: hidden;
         }
 
         .camera-container.active {
@@ -212,6 +215,26 @@
             display: none !important;
         }
 
+        /* Mobile optimizations */
+        @media (max-width: 900px) {
+            .camera-container {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: 100%;
+                height: 100%;
+            }
+            
+            body.camera-active {
+                overflow: hidden;
+                position: fixed;
+                width: 100%;
+                height: 100%;
+            }
+        }
+        
         /* Landscape phone optimizations */
         @media (orientation: landscape) and (max-width: 900px) {
             .camera-container {
@@ -376,6 +399,9 @@
             // Stop floating animation
             isFloating = false;
             floatingImg.style.display = 'none';
+            
+            // Add class to body to lock scrolling
+            document.body.classList.add('camera-active');
             
             document.getElementById('nameModal').style.display = 'none';
             document.getElementById('cameraContainer').classList.add('active');
