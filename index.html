@@ -387,11 +387,11 @@
             if (totalPeople === 1) {
                 baseRadius = minDimension * 0.2;
             } else if (totalPeople <= 3) {
-                baseRadius = minDimension * (isLandscape ? 0.13 : 0.15);
+                baseRadius = minDimension * (isLandscape ? 0.11 : 0.15);
             } else if (totalPeople <= 5) {
-                baseRadius = minDimension * (isLandscape ? 0.10 : 0.12);
+                baseRadius = minDimension * (isLandscape ? 0.09 : 0.12);
             } else {
-                baseRadius = minDimension * (isLandscape ? 0.08 : 0.09);
+                baseRadius = minDimension * (isLandscape ? 0.07 : 0.09);
             }
             
             circlePositions = calculateOptimalPositions(centerX, centerY, baseRadius, totalPeople);
@@ -417,11 +417,11 @@
             } else {
                 let baseRadius;
                 if (totalPeople <= 3) {
-                    baseRadius = minDimension * (isLandscape ? 0.13 : 0.15);
+                    baseRadius = minDimension * (isLandscape ? 0.11 : 0.15);
                 } else if (totalPeople <= 5) {
-                    baseRadius = minDimension * (isLandscape ? 0.10 : 0.12);
+                    baseRadius = minDimension * (isLandscape ? 0.09 : 0.12);
                 } else {
-                    baseRadius = minDimension * (isLandscape ? 0.08 : 0.09);
+                    baseRadius = minDimension * (isLandscape ? 0.07 : 0.09);
                 }
                 
                 randomOrder.forEach((name, index) => {
@@ -488,9 +488,10 @@
             const paddingMultiplier = isLandscape ? 2.5 : 1.8;
             const padding = radius * paddingMultiplier;
             
-            // Extra padding from top in landscape to account for browser UI
-            const topPadding = isLandscape ? padding * 1.3 : padding;
-            const bottomPadding = isLandscape ? padding * 1.5 : padding;
+            // Extra padding from top in landscape to account for browser UI (address bar, tabs)
+            // Increased significantly to avoid top bar blocking circles
+            const topPadding = isLandscape ? Math.max(padding * 2.5, radius * 4) : padding;
+            const bottomPadding = isLandscape ? padding * 1.8 : padding;
             
             const maxAttempts = 1500;
             
