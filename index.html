@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Praveen Clicks</title>
     <style>
         * {
@@ -120,6 +120,7 @@
             position: relative;
             width: 100vw;
             height: 100vh;
+            height: 100dvh;
             background: #000;
         }
 
@@ -151,13 +152,14 @@
         }
 
         .controls {
-            position: absolute;
+            position: fixed;
             bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
             gap: 15px;
             z-index: 10;
+            flex-direction: row;
         }
 
         .capture-btn, .download-btn, .retake-btn, .shuffle-btn {
@@ -194,12 +196,42 @@
             display: none !important;
         }
 
+        /* Landscape phone optimizations */
         @media (orientation: landscape) and (max-width: 900px) {
+            .camera-container {
+                height: 100vh;
+                height: 100svh;
+            }
+            
+            video, canvas {
+                height: 100vh;
+                height: 100svh;
+            }
+            
             .controls {
-                right: 30px;
-                left: auto;
-                transform: none;
-                flex-direction: column;
+                bottom: 15px;
+                flex-direction: row;
+                gap: 10px;
+            }
+            
+            .capture-btn, .download-btn, .retake-btn, .shuffle-btn {
+                padding: 12px 24px;
+                font-size: 16px;
+                min-width: 90px;
+            }
+        }
+        
+        /* Extra small landscape screens */
+        @media (orientation: landscape) and (max-height: 500px) {
+            .controls {
+                bottom: 10px;
+                gap: 8px;
+            }
+            
+            .capture-btn, .download-btn, .retake-btn, .shuffle-btn {
+                padding: 10px 20px;
+                font-size: 14px;
+                min-width: 80px;
             }
         }
 
@@ -211,6 +243,7 @@
             color: white;
             font-size: 18px;
             text-align: center;
+            z-index: 5;
         }
     </style>
 </head>
@@ -316,9 +349,11 @@
                 // Redraw on video resize (orientation changes)
                 video.addEventListener('resize', () => {
                     setTimeout(() => {
-                        overlayCanvas.width = video.videoWidth;
-                        overlayCanvas.height = video.videoHeight;
-                        calculateAndDrawPositions();
+                        if (!faceCaptured) {
+                            overlayCanvas.width = video.videoWidth;
+                            overlayCanvas.height = video.videoHeight;
+                            calculateAndDrawPositions();
+                        }
                     }, 200);
                 });
 
@@ -346,16 +381,17 @@
             const centerY = canvas.height / 2;
             const totalPeople = randomOrder.length;
             const minDimension = Math.min(canvas.width, canvas.height);
+            const isLandscape = canvas.width > canvas.height;
             
             let baseRadius;
             if (totalPeople === 1) {
                 baseRadius = minDimension * 0.2;
             } else if (totalPeople <= 3) {
-                baseRadius = minDimension * 0.15;
+                baseRadius = minDimension * (isLandscape ? 0.13 : 0.15);
             } else if (totalPeople <= 5) {
-                baseRadius = minDimension * 0.12;
+                baseRadius = minDimension * (isLandscape ? 0.10 : 0.12);
             } else {
-                baseRadius = minDimension * 0.09;
+                baseRadius = minDimension * (isLandscape ? 0.08 : 0.09);
             }
             
             circlePositions = calculateOptimalPositions(centerX, centerY, baseRadius, totalPeople);
@@ -373,14 +409,20 @@
             const totalPeople = randomOrder.length;
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
+            const isLandscape = canvas.width > canvas.height;
             
             if (totalPeople === 1) {
                 const radius = minDimension * 0.2;
                 drawPersonCircle(ctx, centerX, centerY, radius, 'Praveen', true);
             } else {
-                const baseRadius = totalPeople <= 3 ? minDimension * 0.15 : 
-                                  totalPeople <= 5 ? minDimension * 0.12 : 
-                                  minDimension * 0.09;
+                let baseRadius;
+                if (totalPeople <= 3) {
+                    baseRadius = minDimension * (isLandscape ? 0.13 : 0.15);
+                } else if (totalPeople <= 5) {
+                    baseRadius = minDimension * (isLandscape ? 0.10 : 0.12);
+                } else {
+                    baseRadius = minDimension * (isLandscape ? 0.08 : 0.09);
+                }
                 
                 randomOrder.forEach((name, index) => {
                     const pos = circlePositions[index];
@@ -440,7 +482,16 @@
             const positions = [];
             const canvasWidth = document.getElementById('overlayCanvas').width;
             const canvasHeight = document.getElementById('overlayCanvas').height;
-            const padding = radius * 1.8;
+            
+            // Account for landscape orientation - add more top/bottom padding
+            const isLandscape = canvasWidth > canvasHeight;
+            const paddingMultiplier = isLandscape ? 2.5 : 1.8;
+            const padding = radius * paddingMultiplier;
+            
+            // Extra padding from top in landscape to account for browser UI
+            const topPadding = isLandscape ? padding * 1.3 : padding;
+            const bottomPadding = isLandscape ? padding * 1.5 : padding;
+            
             const maxAttempts = 1500;
             
             for (let i = 0; i < count; i++) {
@@ -451,7 +502,7 @@
                 while (!validPosition && attempts < maxAttempts) {
                     newPos = {
                         x: padding + Math.random() * (canvasWidth - 2 * padding),
-                        y: padding + Math.random() * (canvasHeight - 2 * padding)
+                        y: topPadding + Math.random() * (canvasHeight - topPadding - bottomPadding)
                     };
                     
                     validPosition = true;
@@ -477,11 +528,11 @@
                     const row = Math.floor(i / cols);
                     const col = i % cols;
                     const spacingX = (canvasWidth - 2 * padding) / (cols + 1);
-                    const spacingY = (canvasHeight - 2 * padding) / (Math.ceil(count / cols) + 1);
+                    const spacingY = (canvasHeight - topPadding - bottomPadding) / (Math.ceil(count / cols) + 1);
                     
                     positions.push({
                         x: padding + spacingX * (col + 1),
-                        y: padding + spacingY * (row + 1)
+                        y: topPadding + spacingY * (row + 1)
                     });
                 }
             }
@@ -549,7 +600,7 @@
         let lastOrientation = window.orientation || 0;
         
         function handleOrientationChange() {
-            const currentOrientation = window.orientation || 0;
+            const currentOrientation = window.orientation || (window.innerWidth > window.innerHeight ? 90 : 0);
             
             // Only process if orientation actually changed
             if (currentOrientation !== lastOrientation) {
@@ -573,7 +624,7 @@
                             calculateAndDrawPositions();
                         }
                     }
-                }, 400);
+                }, 500);
             }
         }
         
