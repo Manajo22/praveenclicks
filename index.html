@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Group Selfie Camera</title>
+    <title>Praveen Clicks</title>
     <style>
         * {
             margin: 0;
@@ -131,6 +131,7 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
+            transform: scaleX(-1);
         }
 
         canvas {
@@ -143,6 +144,10 @@
 
         .overlay-canvas {
             pointer-events: none;
+        }
+
+        #captureCanvas {
+            transform: scaleX(-1);
         }
 
         .controls {
@@ -237,7 +242,7 @@
         let names = [];
         let faceCaptured = false;
         let randomOrder = [];
-        let circlePositions = []; // Store positions to prevent recalculation
+        let circlePositions = [];
 
         // Name modal functionality
         document.getElementById('addNameBtn').addEventListener('click', () => {
@@ -256,7 +261,6 @@
                 </div>
             `).join('');
 
-            // Add event listeners
             container.querySelectorAll('input').forEach(input => {
                 input.addEventListener('input', (e) => {
                     names[e.target.dataset.index] = e.target.value;
@@ -276,7 +280,6 @@
 
         // Start camera
         document.getElementById('startBtn').addEventListener('click', async () => {
-            // Generate random order for display
             const allNames = ['Praveen', ...names.filter(n => n.trim())];
             randomOrder = [...allNames].sort(() => Math.random() - 0.5);
             
@@ -302,16 +305,12 @@
                 video.addEventListener('loadedmetadata', () => {
                     overlayCanvas.width = video.videoWidth;
                     overlayCanvas.height = video.videoHeight;
+                    overlayCanvas.style.width = '100%';
+                    overlayCanvas.style.height = '100%';
+                    overlayCanvas.style.objectFit = 'cover';
+                    
                     document.getElementById('loading').style.display = 'none';
-                    
-                    // Calculate positions once on load
-                    const centerX = overlayCanvas.width / 2;
-                    const centerY = overlayCanvas.height / 2;
-                    const totalPeople = randomOrder.length;
-                    const baseRadius = Math.min(overlayCanvas.width, overlayCanvas.height) * 0.12;
-                    circlePositions = calculateOptimalPositions(centerX, centerY, baseRadius, totalPeople);
-                    
-                    drawGuides();
+                    calculateAndDrawPositions();
                 });
 
                 // Initialize MediaPipe Face Detection
@@ -325,14 +324,33 @@
                 });
 
                 faceDetection.onResults(onResults);
-
-                // Don't use camera helper - it calls onResults too frequently
-                // Just display the video without continuous processing
                 video.play();
             } catch (error) {
                 alert('Camera access denied or not available');
                 console.error(error);
             }
+        }
+
+        function calculateAndDrawPositions() {
+            const canvas = document.getElementById('overlayCanvas');
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const totalPeople = randomOrder.length;
+            const minDimension = Math.min(canvas.width, canvas.height);
+            
+            let baseRadius;
+            if (totalPeople === 1) {
+                baseRadius = minDimension * 0.2;
+            } else if (totalPeople <= 3) {
+                baseRadius = minDimension * 0.15;
+            } else if (totalPeople <= 5) {
+                baseRadius = minDimension * 0.12;
+            } else {
+                baseRadius = minDimension * 0.09;
+            }
+            
+            circlePositions = calculateOptimalPositions(centerX, centerY, baseRadius, totalPeople);
+            drawGuides();
         }
 
         function drawGuides() {
@@ -342,21 +360,21 @@
 
             if (faceCaptured) return;
 
+            const minDimension = Math.min(canvas.width, canvas.height);
+            const totalPeople = randomOrder.length;
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
-            const totalPeople = randomOrder.length;
             
             if (totalPeople === 1) {
-                // Only Praveen
-                const radius = Math.min(canvas.width, canvas.height) * 0.2;
+                const radius = minDimension * 0.2;
                 drawPersonCircle(ctx, centerX, centerY, radius, 'Praveen', true);
             } else {
-                // Calculate sizes based on number of people
-                const baseRadius = Math.min(canvas.width, canvas.height) * 0.12;
-                const positions = calculateOptimalPositions(centerX, centerY, baseRadius, totalPeople);
+                const baseRadius = totalPeople <= 3 ? minDimension * 0.15 : 
+                                  totalPeople <= 5 ? minDimension * 0.12 : 
+                                  minDimension * 0.09;
                 
                 randomOrder.forEach((name, index) => {
-                    const pos = positions[index];
+                    const pos = circlePositions[index];
                     const isPraveen = name === 'Praveen';
                     drawPersonCircle(ctx, pos.x, pos.y, baseRadius, name, isPraveen);
                 });
@@ -364,15 +382,14 @@
         }
 
         function drawPersonCircle(ctx, x, y, radius, name, isPraveen) {
-            // Fill circle with color and opacity
             ctx.beginPath();
             ctx.arc(x, y, radius, 0, 2 * Math.PI);
             
             if (isPraveen) {
-                ctx.fillStyle = 'rgba(65, 105, 225, 0.5)'; // RISD Blue
+                ctx.fillStyle = 'rgba(65, 105, 225, 0.5)';
                 ctx.strokeStyle = 'rgba(65, 105, 225, 0.8)';
             } else {
-                ctx.fillStyle = 'rgba(255, 20, 147, 0.5)'; // Hot pink
+                ctx.fillStyle = 'rgba(255, 20, 147, 0.5)';
                 ctx.strokeStyle = 'rgba(255, 20, 147, 0.8)';
             }
             
@@ -382,13 +399,12 @@
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // Draw name inside circle
             ctx.fillStyle = 'white';
-            ctx.font = 'bold 18px Arial';
+            const fontSize = Math.max(14, Math.min(22, radius * 0.3));
+            ctx.font = `bold ${fontSize}px Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             
-            // Wrap text if too long
             const maxWidth = radius * 1.6;
             const words = name.split(' ');
             let line = '';
@@ -416,8 +432,6 @@
             const canvasWidth = document.getElementById('overlayCanvas').width;
             const canvasHeight = document.getElementById('overlayCanvas').height;
             const padding = radius * 1.5;
-            
-            // Generate random positions ensuring no overlap
             const maxAttempts = 1000;
             
             for (let i = 0; i < count; i++) {
@@ -426,13 +440,11 @@
                 let newPos;
                 
                 while (!validPosition && attempts < maxAttempts) {
-                    // Random position within bounds
                     newPos = {
                         x: padding + Math.random() * (canvasWidth - 2 * padding),
                         y: padding + Math.random() * (canvasHeight - 2 * padding)
                     };
                     
-                    // Check if position overlaps with existing circles
                     validPosition = true;
                     for (let j = 0; j < positions.length; j++) {
                         const dist = Math.sqrt(
@@ -452,7 +464,6 @@
                 if (validPosition) {
                     positions.push(newPos);
                 } else {
-                    // Fallback to grid if random fails
                     const cols = Math.ceil(Math.sqrt(count));
                     const row = Math.floor(i / cols);
                     const col = i % cols;
@@ -473,22 +484,12 @@
             drawGuides();
         }
 
-        // Shuffle button
         document.getElementById('shuffleBtn').addEventListener('click', () => {
             const allNames = ['Praveen', ...names.filter(n => n.trim())];
             randomOrder = [...allNames].sort(() => Math.random() - 0.5);
-            
-            // Recalculate positions for new random order
-            const canvas = document.getElementById('overlayCanvas');
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
-            const baseRadius = Math.min(canvas.width, canvas.height) * 0.12;
-            circlePositions = calculateOptimalPositions(centerX, centerY, baseRadius, randomOrder.length);
-            
-            drawGuides();
+            calculateAndDrawPositions();
         });
 
-        // Capture photo
         document.getElementById('captureBtn').addEventListener('click', () => {
             const video = document.getElementById('video');
             const captureCanvas = document.getElementById('captureCanvas');
@@ -496,7 +497,6 @@
 
             captureCanvas.width = video.videoWidth;
             captureCanvas.height = video.videoHeight;
-
             ctx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
 
             faceCaptured = true;
@@ -516,7 +516,6 @@
             captureCanvas.style.objectFit = 'cover';
         });
 
-        // Retake photo
         document.getElementById('retakeBtn').addEventListener('click', () => {
             faceCaptured = false;
             document.getElementById('video').style.display = 'block';
@@ -529,7 +528,6 @@
             drawGuides();
         });
 
-        // Download photo
         document.getElementById('downloadBtn').addEventListener('click', () => {
             const captureCanvas = document.getElementById('captureCanvas');
             const link = document.createElement('a');
@@ -538,7 +536,6 @@
             link.click();
         });
 
-        // Handle orientation changes
         window.addEventListener('resize', () => {
             if (!faceCaptured && circlePositions.length > 0) {
                 const video = document.getElementById('video');
@@ -546,14 +543,7 @@
                 if (video.videoWidth && video.videoHeight) {
                     overlayCanvas.width = video.videoWidth;
                     overlayCanvas.height = video.videoHeight;
-                    
-                    // Recalculate positions for new canvas size
-                    const centerX = overlayCanvas.width / 2;
-                    const centerY = overlayCanvas.height / 2;
-                    const baseRadius = Math.min(overlayCanvas.width, overlayCanvas.height) * 0.12;
-                    circlePositions = calculateOptimalPositions(centerX, centerY, baseRadius, randomOrder.length);
-                    
-                    drawGuides();
+                    calculateAndDrawPositions();
                 }
             }
         });
