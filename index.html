@@ -313,6 +313,15 @@
                     calculateAndDrawPositions();
                 });
 
+                // Redraw on video resize (orientation changes)
+                video.addEventListener('resize', () => {
+                    setTimeout(() => {
+                        overlayCanvas.width = video.videoWidth;
+                        overlayCanvas.height = video.videoHeight;
+                        calculateAndDrawPositions();
+                    }, 200);
+                });
+
                 // Initialize MediaPipe Face Detection
                 faceDetection = new FaceDetection({
                     locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`
@@ -537,41 +546,44 @@
         });
 
         let resizeTimeout;
-        window.addEventListener('resize', () => {
-            clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(() => {
-                if (!faceCaptured) {
-                    const video = document.getElementById('video');
-                    const overlayCanvas = document.getElementById('overlayCanvas');
-                    if (video.videoWidth && video.videoHeight) {
-                        overlayCanvas.width = video.videoWidth;
-                        overlayCanvas.height = video.videoHeight;
-                        overlayCanvas.style.width = '100%';
-                        overlayCanvas.style.height = '100%';
-                        overlayCanvas.style.objectFit = 'cover';
-                        calculateAndDrawPositions();
+        let lastOrientation = window.orientation || 0;
+        
+        function handleOrientationChange() {
+            const currentOrientation = window.orientation || 0;
+            
+            // Only process if orientation actually changed
+            if (currentOrientation !== lastOrientation) {
+                lastOrientation = currentOrientation;
+                
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => {
+                    if (!faceCaptured) {
+                        const video = document.getElementById('video');
+                        const overlayCanvas = document.getElementById('overlayCanvas');
+                        
+                        if (video && video.videoWidth && video.videoHeight) {
+                            // Force canvas to match video dimensions
+                            overlayCanvas.width = video.videoWidth;
+                            overlayCanvas.height = video.videoHeight;
+                            overlayCanvas.style.width = '100%';
+                            overlayCanvas.style.height = '100%';
+                            overlayCanvas.style.objectFit = 'cover';
+                            
+                            // Recalculate and redraw
+                            calculateAndDrawPositions();
+                        }
                     }
-                }
-            }, 100);
-        });
-
-        // Handle orientation changes specifically
-        window.addEventListener('orientationchange', () => {
-            setTimeout(() => {
-                if (!faceCaptured) {
-                    const video = document.getElementById('video');
-                    const overlayCanvas = document.getElementById('overlayCanvas');
-                    if (video.videoWidth && video.videoHeight) {
-                        overlayCanvas.width = video.videoWidth;
-                        overlayCanvas.height = video.videoHeight;
-                        overlayCanvas.style.width = '100%';
-                        overlayCanvas.style.height = '100%';
-                        overlayCanvas.style.objectFit = 'cover';
-                        calculateAndDrawPositions();
-                    }
-                }
-            }, 300);
-        });
+                }, 400);
+            }
+        }
+        
+        window.addEventListener('resize', handleOrientationChange);
+        window.addEventListener('orientationchange', handleOrientationChange);
+        
+        // Also listen to screen orientation API if available
+        if (screen.orientation) {
+            screen.orientation.addEventListener('change', handleOrientationChange);
+        }
     </script>
 </body>
 </html>
