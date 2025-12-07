@@ -28,6 +28,18 @@
             max-width: 400px;
             width: 90%;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 10;
+        }
+
+        .floating-image {
+            position: fixed;
+            width: 120px;
+            height: auto;
+            pointer-events: none;
+            z-index: 100;
+            object-fit: contain;
+            transition: all 0.1s linear;
         }
 
         .modal h2 {
@@ -248,6 +260,8 @@
     </style>
 </head>
 <body>
+    <img src="Praveen.png" class="floating-image" id="floatingImg" alt="">
+    
     <div class="modal" id="nameModal">
         <h2>Praveen, who are you clicking a selfie with?</h2>
         <div id="nameInputs"></div>
@@ -272,6 +286,40 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js"></script>
 
     <script>
+        // Floating image that moves across entire screen
+        let floatingImg = document.getElementById('floatingImg');
+        let x = Math.random() * (window.innerWidth - 120);
+        let y = Math.random() * (window.innerHeight - 120);
+        let velocityX = (Math.random() - 0.5) * 2; // Random speed between -1 and 1
+        let velocityY = (Math.random() - 0.5) * 2;
+        let isFloating = true;
+        
+        function moveFloatingImage() {
+            if (!isFloating) return;
+            
+            // Update position
+            x += velocityX;
+            y += velocityY;
+            
+            // Bounce off edges
+            if (x <= 0 || x >= window.innerWidth - 120) {
+                velocityX *= -1;
+                x = Math.max(0, Math.min(x, window.innerWidth - 120));
+            }
+            if (y <= 0 || y >= window.innerHeight - 120) {
+                velocityY *= -1;
+                y = Math.max(0, Math.min(y, window.innerHeight - 120));
+            }
+            
+            // Apply position
+            floatingImg.style.left = x + 'px';
+            floatingImg.style.top = y + 'px';
+            
+            requestAnimationFrame(moveFloatingImage);
+        }
+        
+        moveFloatingImage();
+        
         let names = [];
         let faceCaptured = false;
         let randomOrder = [];
@@ -282,6 +330,11 @@
             if (names.length < 10) {
                 names.push('');
                 updateNameInputs();
+            }
+            // Hide floating image when adding first person
+            if (names.length === 1) {
+                isFloating = false;
+                floatingImg.style.display = 'none';
             }
         });
 
@@ -315,6 +368,10 @@
         document.getElementById('startBtn').addEventListener('click', async () => {
             const allNames = ['Praveen', ...names.filter(n => n.trim())];
             randomOrder = [...allNames].sort(() => Math.random() - 0.5);
+            
+            // Stop floating animation
+            isFloating = false;
+            floatingImg.style.display = 'none';
             
             document.getElementById('nameModal').style.display = 'none';
             document.getElementById('cameraContainer').classList.add('active');
